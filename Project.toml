@@ -3,6 +3,14 @@ uuid = "e6ec0278-4638-400e-9a0a-44f84d13db8f"
 authors = ["Ahmad Izzuddin"]
 version = "0.1.0"
 
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
 [compat]
 julia = "1.6"
 
