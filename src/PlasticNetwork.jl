@@ -83,15 +83,9 @@ function propagate_loop!(network::Network, out::Array, ∇w, ∇b, ∑w::Array, 
         network.signal[inputIdx] .= sigmoid.(network.signal[inputIdx] .+ χ[:,x])
         
         # * pool the updates of an iteration to the weight & bias change arrays
-        @inbounds ∇w[srcIdx,:] .= tanh.(∇w - (network.δw .* network.signal .* map(x -> sign(x), network.w')))[srcIdx,:]
-        @inbounds ∇b[srcIdx] .= tanh.(∇b - (network.δb .* network.signal .* map(x -> sign(x), network.b)))[srcIdx]
-        # * increment accumulator and stop clock for neurons that fire
-        # TODO: make two branches of the loop, one for cpu and the other for gpu
-        @inbounds network.accumulator[srcIdx] .+= 1
-        @inbounds network.cycle_timer[srcIdx] .= 0
-        # * and decrement accumulator and start clock for neurons that don't fire
-        @inbounds network.accumulator[notSrcIdx] .-= 1
-        @inbounds network.cycle_timer[notSrcIdx] .+= 1
+        @inbounds ∇w[srcIdx,:] .= (∇w - (network.δw .* network.signal .* map(x -> sign(x), network.w')))[srcIdx,:]
+        @inbounds ∇b[srcIdx] .= (∇b - (network.δb .* network.signal .* map(x -> sign(x), network.b)))[srcIdx]
+        
         # TODO: compute the probability of a synapse becoming viable or nonviable
         # TODO:update active synapses matrix α
         #= 
@@ -107,8 +101,15 @@ function propagate_loop!(network::Network, out::Array, ∇w, ∇b, ∑w::Array, 
         @inbounds network.signalSrc .= (.!isapprox.(network.signal, 0.0)) .| network.inputNeurons
         srcIdx = findall(network.signalSrc)
         notSrcIdx = findall(el -> !el, network.signalSrc)
+        # * increment accumulator and restart timer for neurons that fire
+        # TODO: make two branches of the loop, one for cpu and the other for gpu
+        @inbounds network.accumulator[srcIdx] .+= 1
+        @inbounds network.cycle_timer[srcIdx] .= 0
+        # * and decrement accumulator and start/continue timer for neurons that don't fire
+        @inbounds network.accumulator[notSrcIdx] .-= 1
+        @inbounds network.cycle_timer[notSrcIdx] .+= 1
         # * update signal
-        @inbounds network.signal[srcIdx] .= sigmoid.(network.signal + network.b)[srcIdx]
+        @inbounds network.signal .= sigmoid.(network.signal + (network.b .* network.signalSrc))
         # * update biases of receiving neurons
         @inbounds network.b[srcIdx] .= tanh.((network.b + (∇b .* ϵ))[srcIdx])
         
@@ -144,6 +145,8 @@ function propagate!(network::Network, χ, outputLength::Integer; ϵ::Float64 = 0
         local inputLength = Base.length(χ[:,1])
         local inputNum = size(χ)[2]
         if sum(network.inputNeurons) < inputLength
+            # ! bad setting of input neurons
+            # TODO: FIX THIS ISSUE
             println("current network input length is smaller than input length, adding $(inputLength - sum(network.inputNeurons))")
             @inbounds network.inputNeurons[sample(Array(findall(el -> !el, network.inputNeurons .& (.!network.outputNeurons))), inputLength - sum(network.inputNeurons), replace = false)] .= true
             @inbounds network.signalSrc = network.inputNeurons
@@ -171,9 +174,9 @@ function propagate!(network::Network, χ, outputLength::Integer; ϵ::Float64 = 0
         local outputIdx::network.T = findall(network.outputNeurons)
         propagate_loop!(network, out, ∇w, ∇b, ∑w, ∑b, srcIdx, notSrcIdx, inputIdx, outputIdx, χ, inputNum, samplingRate, outputLength, ϵ)
         # TODO: propagate until the last input reaches the output
-        while false
+        # while false
             
-        end
+        # end
     end
 	return size(network.signal), out, ∑w, ∑b
 end
